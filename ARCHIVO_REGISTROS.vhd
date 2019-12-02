@@ -1,0 +1,59 @@
+ --ARCHIVO DE REGISTROS COMPLETO DE 16 BITS 
+--CASTILLO SANABRIA DIEGO ANGEL
+
+library IEEE;
+library work;
+
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use WORK.PKG_ESCOMIPS.ALL;
+
+entity ARCHIVO_REGISTROS is
+	GENERIC(
+			N_ADDR : INTEGER := 4; 
+			N_DATA : INTEGER := 16 
+	);
+
+Port ( ADDR_W : in  STD_LOGIC_VECTOR (N_ADDR-1 downto 0); 
+			  ADDR_R1 : in  STD_LOGIC_VECTOR (N_ADDR-1 downto 0); 
+			  ADDR_R2 : in  STD_LOGIC_VECTOR (N_ADDR-1 downto 0); 
+           DIN : in  STD_LOGIC_VECTOR (N_DATA-1 downto 0); 
+           DOUT1 : inout  STD_LOGIC_VECTOR (N_DATA-1 downto 0); 
+			  DOUT2 : out  STD_LOGIC_VECTOR (N_DATA-1 downto 0); 
+           WEN : in  STD_LOGIC; 
+           CLK : in  STD_LOGIC;
+			  SHE : in STD_LOGIC; 
+			  DIR : in STD_LOGIC; 
+			  SHIFT : in STD_LOGIC_VECTOR ( 3 downto 0 ) 
+			  );
+end ARCHIVO_REGISTROS;
+
+architecture PROGRAMA of ARCHIVO_REGISTROS is
+TYPE MEMORIA IS ARRAY ( 0 TO 2**N_ADDR-1 ) --direcciones
+				OF STD_LOGIC_VECTOR( DIN'RANGE ); --long registro
+SIGNAL RAM_DIST : MEMORIA;
+begin
+	
+	PRAM : PROCESS (CLK)
+	BEGIN
+
+		IF ( RISING_EDGE(CLK) ) THEN
+			
+			IF ( WEN = '1' AND SHE = '0' ) THEN 
+				RAM_DIST( CONV_INTEGER(ADDR_W) ) <= DIN;
+			ELSIF ( SHE = '1' AND DIR = '1' AND WEN = '1' ) THEN
+				RAM_DIST( CONV_INTEGER(ADDR_W) ) <= SHIFTL( RAM_DIST( CONV_INTEGER(ADDR_R1) ) , SHIFT );
+			ELSIF (SHE = '1' AND DIR = '0' AND WEN = '1') THEN
+				RAM_DIST( CONV_INTEGER(ADDR_W) ) <= SHIFTR( RAM_DIST( CONV_INTEGER(ADDR_R1) ), SHIFT );
+			END IF;
+				
+		END IF;
+	
+	END PROCESS PRAM;
+	
+	--LECTURA FUERA DEL PROCESO PARA QUE SEA ASINCRONA
+	--dos muxes para lectura de registros
+	DOUT1 <= RAM_DIST( CONV_INTEGER(ADDR_R1) );
+	DOUT2 <= RAM_DIST( CONV_INTEGER(ADDR_R2) );
+
+end PROGRAMA;
